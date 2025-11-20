@@ -1,23 +1,35 @@
 import asyncio
 from flask import Flask, request
-from telethon import TelegramClient
+from pyrogram import Client
 from pytgcalls import PyTgCalls
-from pytgcalls.types.input_phone_call import InputPhoneCall
+
+api_id = 123456       # ТВОИ данные!
+api_hash = "ABCDEFG"  # ТВОИ данные!
+your_user_id = 123456789  # Твой Telegram ID
 
 app = Flask(__name__)
 
-api_id = 123456      # <-- Вставьте свой api_id
-api_hash = "ABCDEF"  # <-- Ваш api_hash
-your_user_id = 123456789  # <-- Ваш Telegram user_id
+# Pyrogram
+client = Client(
+    "session",
+    api_id=api_id,
+    api_hash=api_hash
+)
 
-client = TelegramClient("session/session", api_id, api_hash)
-call_client = PyTgCalls(client)
+# TGCALLS
+call = PyTgCalls(client)
+
 
 @app.before_first_request
 def init_telegram():
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(client.start())
-    loop.run_until_complete(call_client.start())
+    loop.run_until_complete(start_bot())
+
+
+async def start_bot():
+    await client.start()
+    await call.start()
+
 
 @app.post("/usedesk")
 def usedesk_webhook():
@@ -32,9 +44,18 @@ def usedesk_webhook():
 
     return "ok"
 
+
 async def notify_and_call(text):
+
+    # Отправить сообщение
     await client.send_message(your_user_id, text)
-    await call_client.join(InputPhoneCall(your_user_id))
+
+    # Сделать звонок
+    await call.join_group_call(
+        chat_id=your_user_id,
+        input_stream=None  # значит просто звонок без аудио
+    )
+
 
 if name == "__main__":
     app.run(host="0.0.0.0", port=10000)
